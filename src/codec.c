@@ -1,13 +1,27 @@
 #include <string.h>
-#include <luajit-2.0/lua.h>
-#include <luajit-2.0/lauxlib.h>
-#include <luajit-2.0/lualib.h>
+#include <lua.h>
+#include <lauxlib.h>
+#include <lualib.h>
 #include <openssl/bio.h>
 #include <openssl/rsa.h>
 #include <openssl/pem.h>
 #include <openssl/evp.h>
 #include <openssl/md5.h>
 #include <openssl/hmac.h>
+
+/*
+ * ** compatibility with Lua 5.2
+ * */
+#if (LUA_VERSION_NUM >= 502)
+#undef luaL_register
+#define luaL_register(L,n,f) \
+{ if ((n) == NULL) luaL_setfuncs(L,f,0); else luaL_newlib(L,f); }
+#endif
+
+#if (LUA_VERSION_NUM >= 503)
+#undef luaL_optint
+#define luaL_optint(L,n,d)  ((int)luaL_optinteger(L,(n),(d)))
+#endif
 
 /**
  * BASE64编码
@@ -130,7 +144,7 @@ static int codec_aes_encrypt(lua_State *L)
 {
   size_t len;
   const char *src = luaL_checklstring(L, 1, &len);
-  char *key = luaL_checkstring(L, 2);
+  const char *key = luaL_checkstring(L, 2);
 
   EVP_CIPHER_CTX ctx;
   EVP_CIPHER_CTX_init(&ctx);
@@ -181,7 +195,7 @@ static int codec_aes_decrypt(lua_State *L)
 {
   size_t len;
   const char *src = luaL_checklstring(L, 1, &len);
-  char *key = luaL_checkstring(L, 2);
+  const char *key = luaL_checkstring(L, 2);
 
   EVP_CIPHER_CTX ctx;
   EVP_CIPHER_CTX_init(&ctx);
@@ -232,7 +246,7 @@ static int codec_rsa_private_sign(lua_State *L)
 {
   size_t len;
   const char *src = luaL_checklstring(L, 1, &len);
-  char *pem = luaL_checkstring(L, 2);
+  const char *pem = luaL_checkstring(L, 2);
 
   SHA_CTX c;
   unsigned char sha[SHA_DIGEST_LENGTH];
@@ -303,8 +317,8 @@ static int codec_rsa_public_verify(lua_State *L)
   size_t srclen, signlen;
   const char *src = luaL_checklstring(L, 1, &srclen);
   const char *sign = luaL_checklstring(L, 2, &signlen);
-  char *pem = luaL_checkstring(L, 3);
-  int type = luaL_checkint(L, 4);
+  const char *pem = luaL_checkstring(L, 3);
+  int type = luaL_checkinteger(L, 4);
 
   SHA_CTX ctx;
   int ctxlen = sizeof(ctx);
@@ -363,8 +377,8 @@ static int codec_rsa_public_encrypt(lua_State *L)
 {
   size_t len;
   const char *src = luaL_checklstring(L, 1, &len);
-  char *pem = luaL_checkstring(L, 2);
-  int type = luaL_checkint(L, 3);
+  const char *pem = luaL_checkstring(L, 2);
+  int type = luaL_checkinteger(L, 3);
 
   BIO *bio = BIO_new_mem_buf((void *)pem, -1);
   if(bio == NULL)
@@ -410,7 +424,7 @@ static int codec_rsa_public_encrypt(lua_State *L)
 static int codec_rsa_private_decrypt(lua_State *L)
 {
   const char *src = luaL_checkstring(L, 1);
-  char *pem = luaL_checkstring(L, 2);
+  const char *pem = luaL_checkstring(L, 2);
 
   BIO *bio = BIO_new_mem_buf((void *)pem, -1);
   if(bio == NULL)
@@ -458,7 +472,7 @@ static const struct luaL_Reg codec[] =
   {NULL, NULL}
 };
 
-int luaopen_codec(lua_State *L)
+LUALIB_API int luaopen_codec(lua_State * const L)
 {
   luaL_register(L, "codec", codec);
   return 1;
