@@ -90,17 +90,14 @@ static int codec_md5_encode(lua_State *L)
   size_t len;
   const char *cs = luaL_checklstring(L, 1, &len);
   unsigned char bs[16];
-  char dst[32];
+  char dst[33];
   
   MD5((unsigned char *)cs, len, bs);
   
   int i;
   for(i = 0; i < 16; i++) {
-    char buff[3];
-    sprintf(buff, "%02x", bs[i]);
+    sprintf(dst + i * 2, "%02x", bs[i]);
     // printf("%02x", bs[i]);
-    dst[2 * i] = buff[0];
-    dst[2 * i + 1] = buff[1];
   }
 
   lua_pushlstring(L, dst, 32);
