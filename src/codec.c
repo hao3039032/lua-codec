@@ -134,16 +134,16 @@ static int codec_hmac_sha1_encode(lua_State *L)
 }
 
 /**
- * AES-ECB-PKCS5Padding加密
+ * AES-ECB-PKCS7Padding加密
  *
  * LUA示例:
  * local codec = require('codec')
  * local src = 'something'
  * local key = [[...]] --16位数字串
- * local bs = codec.aes_encrypt(src, key)
+ * local bs = codec.aes_ecb_128_encrypt(src, key)
  * local dst = codec.base64_encode(bs) --BASE64密文
  */
-static int codec_aes_encrypt(lua_State *L)
+static int codec_aes_ecb_128_encrypt(lua_State *L)
 {
   size_t len;
   const char *src = luaL_checklstring(L, 1, &len);
@@ -185,16 +185,16 @@ static int codec_aes_encrypt(lua_State *L)
 }
 
 /**
- * AES-ECB-PKCS5Padding解密
+ * AES-ECB-PKCS7Padding解密
  *
  * LUA示例:
  * local codec = require('codec')
  * local src = [[...]] --BASE64密文
  * local key = [[...]] --16位数字串
  * local bs = codec.base64_decode(src)
- * local dst = codec.aes_decrypt(bs, key)
+ * local dst = codec.aes_ecb_128_decrypt(bs, key)
  */
-static int codec_aes_decrypt(lua_State *L)
+static int codec_aes_ecb_128_decrypt(lua_State *L)
 {
   size_t len;
   const char *src = luaL_checklstring(L, 1, &len);
@@ -204,6 +204,108 @@ static int codec_aes_decrypt(lua_State *L)
   EVP_CIPHER_CTX_init(ctx);
 
   int ret = EVP_DecryptInit_ex(ctx, EVP_aes_128_ecb(), NULL, (unsigned char *)key, NULL);
+  if(ret != 1)
+  {
+    EVP_CIPHER_CTX_free(ctx);
+    return luaL_error(L, "EVP decrypt init error");
+  }
+
+  int n, wn;
+  char dst[len];
+  memset(dst, 0, len);
+
+  ret = EVP_DecryptUpdate(ctx, (unsigned char *)dst, &wn, (unsigned char *)src, len);
+  if(ret != 1)
+  {
+    EVP_CIPHER_CTX_free(ctx);
+    return luaL_error(L, "EVP decrypt update error");
+  }
+  n = wn;
+
+  ret = EVP_DecryptFinal_ex(ctx, (unsigned char *)(dst + n), &wn);
+  if(ret != 1)
+  {
+    EVP_CIPHER_CTX_free(ctx);
+    return luaL_error(L, "EVP decrypt final error");
+  }
+  EVP_CIPHER_CTX_free(ctx);
+  n += wn;
+
+  lua_pushlstring(L, dst, n);
+  return 1;
+}
+
+/**
+ * AES-CBC-PKCS7Padding加密
+ *
+ * LUA示例:
+ * local codec = require('codec')
+ * local src = 'something'
+ * local key = [[...]] --16位数字串
+ * local bs = codec.aes_ecb_128_encrypt(src, key)
+ * local dst = codec.base64_encode(bs) --BASE64密文
+ */
+static int codec_aes_cbc_128_encrypt(lua_State *L)
+{
+  size_t len;
+  const char *src = luaL_checklstring(L, 1, &len);
+  const char *key = luaL_checkstring(L, 2);
+
+  EVP_CIPHER_CTX *ctx = EVP_CIPHER_CTX_new();
+  EVP_CIPHER_CTX_init(ctx);
+
+  int ret = EVP_EncryptInit_ex(ctx, EVP_aes_128_cbc(), NULL, (unsigned char *)key, NULL);
+  if(ret != 1)
+  {
+    EVP_CIPHER_CTX_free(ctx);
+    return luaL_error(L, "EVP encrypt init error");
+  }
+
+  int dstn = len + 128, n, wn;
+  char dst[dstn];
+  memset(dst, 0, dstn);
+
+  ret = EVP_EncryptUpdate(ctx, (unsigned char *)dst, &wn, (unsigned char *)src, len);
+  if(ret != 1)
+  {
+    EVP_CIPHER_CTX_free(ctx);
+    return luaL_error(L, "EVP encrypt update error");
+  }
+  n = wn;
+
+  ret = EVP_EncryptFinal_ex(ctx, (unsigned char *)(dst + n), &wn);
+  if(ret != 1)
+  {
+    EVP_CIPHER_CTX_free(ctx);
+    return luaL_error(L, "EVP encrypt final error");
+  }
+  EVP_CIPHER_CTX_free(ctx);
+  n += wn;
+
+  lua_pushlstring(L, dst, n);
+  return 1;
+}
+
+/**
+ * AES-ECB-PKCS7Padding解密
+ *
+ * LUA示例:
+ * local codec = require('codec')
+ * local src = [[...]] --BASE64密文
+ * local key = [[...]] --16位数字串
+ * local bs = codec.base64_decode(src)
+ * local dst = codec.aes_ecb_128_decrypt(bs, key)
+ */
+static int codec_aes_cbc_128_decrypt(lua_State *L)
+{
+  size_t len;
+  const char *src = luaL_checklstring(L, 1, &len);
+  const char *key = luaL_checkstring(L, 2);
+
+  EVP_CIPHER_CTX *ctx = EVP_CIPHER_CTX_new();
+  EVP_CIPHER_CTX_init(ctx);
+
+  int ret = EVP_DecryptInit_ex(ctx, EVP_aes_128_cbc(), NULL, (unsigned char *)key, NULL);
   if(ret != 1)
   {
     EVP_CIPHER_CTX_free(ctx);
@@ -466,8 +568,10 @@ static const struct luaL_Reg codec[] =
   {"base64_decode", codec_base64_decode},
   {"md5_encode", codec_md5_encode},
   {"hmac_sha1_encode", codec_hmac_sha1_encode},
-  {"aes_encrypt", codec_aes_encrypt},
-  {"aes_decrypt", codec_aes_decrypt},
+  {"aes_ecb_128_encrypt", codec_aes_ecb_128_encrypt},
+  {"aes_ecb_128_decrypt", codec_aes_ecb_128_decrypt},
+  {"aes_cbc_128_encrypt", codec_aes_cbc_128_encrypt},
+  {"aes_cbc_128_decrypt", codec_aes_cbc_128_decrypt},
   {"rsa_private_sign", codec_rsa_private_sign},
   {"rsa_public_verify", codec_rsa_public_verify},
   {"rsa_public_encrypt", codec_rsa_public_encrypt},
