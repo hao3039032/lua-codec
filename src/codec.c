@@ -507,7 +507,6 @@ static int codec_rsa_public_encrypt(lua_State *L)
   if(ret != n)
   {
     RSA_free(rsa);
-    BIO_free_all(bio);
     return luaL_error(L, "RSA public encrypt error");
   }
   RSA_free(rsa);
@@ -553,7 +552,6 @@ static int codec_rsa_private_decrypt(lua_State *L)
   if(ret <= 0)
   {
     RSA_free(rsa);
-    BIO_free_all(bio);
     return luaL_error(L, "RSA private decrypt error");
   }
   RSA_free(rsa);
