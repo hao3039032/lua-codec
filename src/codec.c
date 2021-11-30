@@ -503,7 +503,7 @@ static int codec_rsa_public_encrypt(lua_State *L)
   char dst[n];
   memset(dst, 0, n);
 
-  int ret = RSA_public_encrypt(len, (unsigned char *)src, (unsigned char *)dst, rsa, RSA_PKCS1_OAEP_PADDING);
+  int ret = RSA_public_encrypt(len, (unsigned char *)src, (unsigned char *)dst, rsa, RSA_PKCS1_PADDING);
   if(ret != n)
   {
     RSA_free(rsa);
@@ -548,7 +548,7 @@ static int codec_rsa_private_decrypt(lua_State *L)
   char dst[n];
   memset(dst, 0, n);
 
-  int ret = RSA_private_decrypt(n, (unsigned char *)src, (unsigned char *)dst, rsa, RSA_PKCS1_OAEP_PADDING);
+  int ret = RSA_private_decrypt(n, (unsigned char *)src, (unsigned char *)dst, rsa, RSA_PKCS1_PADDING);
   if(ret <= 0)
   {
     RSA_free(rsa);
