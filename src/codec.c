@@ -328,17 +328,14 @@ static int codec_aes_cbc_128_decrypt(lua_State *L)
   }
   n = wn;
 
-  if (len % 16 != 0) {
-    ret = EVP_DecryptFinal_ex(ctx, (unsigned char *)(dst + n), &wn);
-    if (ret != 1)
-    {
-      EVP_CIPHER_CTX_free(ctx);
-      return luaL_error(L, "EVP decrypt final error");
-    }
-    n += wn;
+  ret = EVP_DecryptFinal_ex(ctx, (unsigned char *)(dst + n), &wn);
+  if(ret != 1)
+  {
+    EVP_CIPHER_CTX_free(ctx);
+    return luaL_error(L, "EVP decrypt final error");
   }
-
   EVP_CIPHER_CTX_free(ctx);
+  n += wn;
 
   lua_pushlstring(L, dst, n);
   return 1;
