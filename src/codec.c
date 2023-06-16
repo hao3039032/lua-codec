@@ -159,6 +159,8 @@ static int codec_aes_ecb_128_encrypt(lua_State *L)
     return luaL_error(L, "EVP encrypt init error");
   }
 
+  EVP_CIPHER_CTX_set_padding(ctx, EVP_PADDING_PKCS7);
+
   int dstn = len + 128, n, wn;
   char dst[dstn];
   memset(dst, 0, dstn);
@@ -209,6 +211,8 @@ static int codec_aes_ecb_128_decrypt(lua_State *L)
     EVP_CIPHER_CTX_free(ctx);
     return luaL_error(L, "EVP decrypt init error");
   }
+
+  EVP_CIPHER_CTX_set_padding(ctx, EVP_PADDING_PKCS7);
 
   int n, wn;
   char dst[len];
