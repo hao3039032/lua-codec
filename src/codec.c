@@ -9,6 +9,8 @@
 #include <openssl/md5.h>
 #include <openssl/hmac.h>
 #include <openssl/sha.h>
+#include <openssl/aes.h>
+#include "PKCS7.h"
 
 /*
  * ** compatibility with Lua 5.2
@@ -147,95 +149,37 @@ static int codec_aes_ecb_128_encrypt(lua_State *L)
 {
   size_t len;
   const char *src = luaL_checklstring(L, 1, &len);
-  const char *key = luaL_checkstring(L, 2);
+  size_t key_len;
+  const char *key = luaL_checklstring(L, 2, &key_len);
 
-  EVP_CIPHER_CTX *ctx = EVP_CIPHER_CTX_new();
-  EVP_CIPHER_CTX_init(ctx);
+  AES_KEY aes_key;
+  int ret = AES_set_encrypt_key((const unsigned char *)key, key_len * 8, &aes_key);
+  if (ret != 0) {
+    switch (ret) {
+      case -1:
+      return luaL_error(L, "AES_set_encrypt_key key error");
+      break;
 
-  int ret = EVP_EncryptInit_ex(ctx, EVP_aes_128_ecb(), NULL, (unsigned char *)key, NULL);
-  if(ret != 1)
-  {
-    EVP_CIPHER_CTX_free(ctx);
-    return luaL_error(L, "EVP encrypt init error");
+      case -2:
+      return luaL_error(L, "AES_set_encrypt_key number of bits is unsupported");
+      break;
+
+      default:
+      return luaL_error(L, "AES_set_encrypt_key unknow error");
+      break;
+    }
   }
 
-  EVP_CIPHER_CTX_set_padding(ctx, EVP_PADDING_PKCS7);
-
-  int dstn = len + 128, n, wn;
-  char dst[dstn];
-  memset(dst, 0, dstn);
-
-  ret = EVP_EncryptUpdate(ctx, (unsigned char *)dst, &wn, (unsigned char *)src, len);
-  if(ret != 1)
-  {
-    EVP_CIPHER_CTX_free(ctx);
-    return luaL_error(L, "EVP encrypt update error");
-  }
-  n = wn;
-
-  ret = EVP_EncryptFinal_ex(ctx, (unsigned char *)(dst + n), &wn);
-  if(ret != 1)
-  {
-    EVP_CIPHER_CTX_free(ctx);
-    return luaL_error(L, "EVP encrypt final error");
-  }
-  EVP_CIPHER_CTX_free(ctx);
-  n += wn;
-
-  lua_pushlstring(L, dst, n);
-  return 1;
-}
-
-/**
- * AES-ECB-PKCS7Padding解密
- *
- * LUA示例:
- * local codec = require('codec')
- * local src = [[...]] --BASE64密文
- * local key = [[...]] --16位数字串
- * local bs = codec.base64_decode(src)
- * local dst = codec.aes_ecb_128_decrypt(bs, key)
- */
-static int codec_aes_ecb_128_decrypt(lua_State *L)
-{
-  size_t len;
-  const char *src = luaL_checklstring(L, 1, &len);
-  const char *key = luaL_checkstring(L, 2);
-
-  EVP_CIPHER_CTX *ctx = EVP_CIPHER_CTX_new();
-  EVP_CIPHER_CTX_init(ctx);
-
-  int ret = EVP_DecryptInit_ex(ctx, EVP_aes_128_ecb(), NULL, (unsigned char *)key, NULL);
-  if(ret != 1)
-  {
-    EVP_CIPHER_CTX_free(ctx);
-    return luaL_error(L, "EVP decrypt init error");
+  PKCS7_Padding* padding = addPadding(src, len, AES_BLOCK_SIZE);
+  size_t outputLen = padding->dataLengthWithPadding;
+  char dst[outputLen];
+  for (int i = 0; i < (outputLen / AES_BLOCK_SIZE); i++) {
+    AES_ecb_encrypt((const unsigned char *)padding->dataWithPadding + AES_BLOCK_SIZE * i, (unsigned char *)dst + AES_BLOCK_SIZE * i, &aes_key, AES_ENCRYPT);
   }
 
-  EVP_CIPHER_CTX_set_padding(ctx, EVP_PADDING_PKCS7);
+  freePaddingResult(padding);
 
-  int n, wn;
-  char dst[len];
-  memset(dst, 0, len);
-
-  ret = EVP_DecryptUpdate(ctx, (unsigned char *)dst, &wn, (unsigned char *)src, len);
-  if(ret != 1)
-  {
-    EVP_CIPHER_CTX_free(ctx);
-    return luaL_error(L, "EVP decrypt update error");
-  }
-  n = wn;
-
-  ret = EVP_DecryptFinal_ex(ctx, (unsigned char *)(dst + n), &wn);
-  if(ret != 1)
-  {
-    EVP_CIPHER_CTX_free(ctx);
-    return luaL_error(L, "EVP decrypt final error");
-  }
-  EVP_CIPHER_CTX_free(ctx);
-  n += wn;
-
-  lua_pushlstring(L, dst, n);
+  lua_pushlstring(L, dst, outputLen);
   return 1;
 }
 
@@ -253,40 +197,36 @@ static int codec_aes_cbc_128_encrypt(lua_State *L)
 {
   size_t len;
   const char *src = luaL_checklstring(L, 1, &len);
-  const char *key = luaL_checkstring(L, 2);
+  size_t key_len;
+  const char *key = luaL_checklstring(L, 2, &key_len);
 
-  EVP_CIPHER_CTX *ctx = EVP_CIPHER_CTX_new();
-  EVP_CIPHER_CTX_init(ctx);
+  AES_KEY aes_key;
+  int ret = AES_set_decrypt_key((const unsigned char *)key, key_len * 8, &aes_key);
+  if (ret != 0) {
+    switch (ret) {
+      case -1:
+      return luaL_error(L, "AES_set_encrypt_key key error");
+      break;
 
-  int ret = EVP_EncryptInit_ex(ctx, EVP_aes_128_cbc(), NULL, (unsigned char *)key, NULL);
-  if(ret != 1)
-  {
-    EVP_CIPHER_CTX_free(ctx);
-    return luaL_error(L, "EVP encrypt init error");
+      case -2:
+      return luaL_error(L, "AES_set_encrypt_key number of bits is unsupported");
+      break;
+
+      default:
+      return luaL_error(L, "AES_set_encrypt_key unknow error");
+      break;
+    }
   }
 
-  int dstn = len + 128, n, wn;
-  char dst[dstn];
-  memset(dst, 0, dstn);
-
-  ret = EVP_EncryptUpdate(ctx, (unsigned char *)dst, &wn, (unsigned char *)src, len);
-  if(ret != 1)
-  {
-    EVP_CIPHER_CTX_free(ctx);
-    return luaL_error(L, "EVP encrypt update error");
+  char dst[len];
+  for (int i = 0; i < (len / AES_BLOCK_SIZE); i++) {
+    AES_ecb_encrypt((const unsigned char *)src + AES_BLOCK_SIZE * i, (unsigned char *)dst + AES_BLOCK_SIZE * i, &aes_key, AES_DECRYPT);
   }
-  n = wn;
 
-  ret = EVP_EncryptFinal_ex(ctx, (unsigned char *)(dst + n), &wn);
-  if(ret != 1)
-  {
-    EVP_CIPHER_CTX_free(ctx);
-    return luaL_error(L, "EVP encrypt final error");
-  }
-  EVP_CIPHER_CTX_free(ctx);
-  n += wn;
+  PKCS7_unPadding *unPadding = removePadding(dst, len);
 
-  lua_pushlstring(L, dst, n);
+  lua_pushlstring(L, unPadding->dataWithoutPadding, unPadding->dataLengthWithoutPadding);
+  freeUnPaddingResult(unPadding);
   return 1;
 }
 
