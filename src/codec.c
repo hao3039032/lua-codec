@@ -183,19 +183,8 @@ static int codec_aes_ecb_128_encrypt(lua_State *L)
   return 1;
 }
 
-/**
- * AES-CBC-PKCS7Padding加密
- *
- * LUA示例:
- * local codec = require('codec')
- * local src = 'something'
- * local key = [[...]] --16位数字串
- * local bs = codec.aes_ecb_128_encrypt(src, key)
- * local dst = codec.base64_encode(bs) --BASE64密文
- */
-static int codec_aes_cbc_128_encrypt(lua_State *L)
-{
-  size_t len;
+static int codec_aes_ecb_128_decrypt(lua_State *L) {
+    size_t len;
   const char *src = luaL_checklstring(L, 1, &len);
   size_t key_len;
   const char *key = luaL_checklstring(L, 2, &key_len);
@@ -227,57 +216,6 @@ static int codec_aes_cbc_128_encrypt(lua_State *L)
 
   lua_pushlstring(L, unPadding->dataWithoutPadding, unPadding->dataLengthWithoutPadding);
   freeUnPaddingResult(unPadding);
-  return 1;
-}
-
-/**
- * AES-ECB-PKCS7Padding解密
- *
- * LUA示例:
- * local codec = require('codec')
- * local src = [[...]] --BASE64密文
- * local key = [[...]] --16位数字串
- * local bs = codec.base64_decode(src)
- * local dst = codec.aes_ecb_128_decrypt(bs, key)
- */
-static int codec_aes_cbc_128_decrypt(lua_State *L)
-{
-  size_t len;
-  const char *src = luaL_checklstring(L, 1, &len);
-  const char *key = luaL_checkstring(L, 2);
-
-  EVP_CIPHER_CTX *ctx = EVP_CIPHER_CTX_new();
-  EVP_CIPHER_CTX_init(ctx);
-
-  int ret = EVP_DecryptInit_ex(ctx, EVP_aes_128_cbc(), NULL, (unsigned char *)key, NULL);
-  if(ret != 1)
-  {
-    EVP_CIPHER_CTX_free(ctx);
-    return luaL_error(L, "EVP decrypt init error");
-  }
-
-  int n, wn;
-  char dst[len];
-  memset(dst, 0, len);
-
-  ret = EVP_DecryptUpdate(ctx, (unsigned char *)dst, &wn, (unsigned char *)src, len);
-  if(ret != 1)
-  {
-    EVP_CIPHER_CTX_free(ctx);
-    return luaL_error(L, "EVP decrypt update error");
-  }
-  n = wn;
-
-  ret = EVP_DecryptFinal_ex(ctx, (unsigned char *)(dst + n), &wn);
-  if(ret != 1)
-  {
-    EVP_CIPHER_CTX_free(ctx);
-    return luaL_error(L, "EVP decrypt final error");
-  }
-  EVP_CIPHER_CTX_free(ctx);
-  n += wn;
-
-  lua_pushlstring(L, dst, n);
   return 1;
 }
 
@@ -512,8 +450,6 @@ static const struct luaL_Reg codec[] =
   {"hmac_sha1_encode", codec_hmac_sha1_encode},
   {"aes_ecb_128_encrypt", codec_aes_ecb_128_encrypt},
   {"aes_ecb_128_decrypt", codec_aes_ecb_128_decrypt},
-  {"aes_cbc_128_encrypt", codec_aes_cbc_128_encrypt},
-  {"aes_cbc_128_decrypt", codec_aes_cbc_128_decrypt},
   {"rsa_private_sign", codec_rsa_private_sign},
   {"rsa_public_verify", codec_rsa_public_verify},
   {"rsa_public_encrypt", codec_rsa_public_encrypt},
