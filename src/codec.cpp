@@ -1,7 +1,4 @@
 #include <string.h>
-#include <lua.h>
-#include <lauxlib.h>
-#include <lualib.h>
 #include <openssl/bio.h>
 #include <openssl/rsa.h>
 #include <openssl/pem.h>
@@ -9,6 +6,12 @@
 #include <openssl/md5.h>
 #include <openssl/hmac.h>
 #include <openssl/sha.h>
+#include <openssl/err.h>
+
+extern "C" {
+#include <lua.h>
+#include <lauxlib.h>
+#include <lualib.h>
 
 /*
  * ** compatibility with Lua 5.2
@@ -156,7 +159,9 @@ static int codec_aes_ecb_128_encrypt(lua_State *L)
   if(ret != 1)
   {
     EVP_CIPHER_CTX_free(ctx);
-    return luaL_error(L, "EVP encrypt init error");
+    char errorBuffer[256];
+    ERR_error_string_n(ERR_get_error(), errorBuffer, 256);
+    return luaL_error(L, errorBuffer);
   }
 
   EVP_CIPHER_CTX_set_padding(ctx, EVP_PADDING_PKCS7);
@@ -169,7 +174,9 @@ static int codec_aes_ecb_128_encrypt(lua_State *L)
   if(ret != 1)
   {
     EVP_CIPHER_CTX_free(ctx);
-    return luaL_error(L, "EVP encrypt update error");
+    char errorBuffer[256];
+    ERR_error_string_n(ERR_get_error(), errorBuffer, 256);
+    return luaL_error(L, errorBuffer);
   }
   n = wn;
 
@@ -177,7 +184,9 @@ static int codec_aes_ecb_128_encrypt(lua_State *L)
   if(ret != 1)
   {
     EVP_CIPHER_CTX_free(ctx);
-    return luaL_error(L, "EVP encrypt final error");
+    char errorBuffer[256];
+    ERR_error_string_n(ERR_get_error(), errorBuffer, 256);
+    return luaL_error(L, errorBuffer);
   }
   EVP_CIPHER_CTX_free(ctx);
   n += wn;
@@ -209,7 +218,9 @@ static int codec_aes_ecb_128_decrypt(lua_State *L)
   if(ret != 1)
   {
     EVP_CIPHER_CTX_free(ctx);
-    return luaL_error(L, "EVP decrypt init error");
+    char errorBuffer[256];
+    ERR_error_string_n(ERR_get_error(), errorBuffer, 256);
+    return luaL_error(L, errorBuffer);
   }
 
   EVP_CIPHER_CTX_set_padding(ctx, EVP_PADDING_PKCS7);
@@ -222,7 +233,9 @@ static int codec_aes_ecb_128_decrypt(lua_State *L)
   if(ret != 1)
   {
     EVP_CIPHER_CTX_free(ctx);
-    return luaL_error(L, "EVP decrypt update error");
+    char errorBuffer[256];
+    ERR_error_string_n(ERR_get_error(), errorBuffer, 256);
+    return luaL_error(L, errorBuffer);
   }
   n = wn;
 
@@ -230,7 +243,9 @@ static int codec_aes_ecb_128_decrypt(lua_State *L)
   if(ret != 1)
   {
     EVP_CIPHER_CTX_free(ctx);
-    return luaL_error(L, "EVP decrypt final error");
+    char errorBuffer[256];
+    ERR_error_string_n(ERR_get_error(), errorBuffer, 256);
+    return luaL_error(L, errorBuffer);
   }
   EVP_CIPHER_CTX_free(ctx);
   n += wn;
@@ -585,4 +600,5 @@ LUALIB_API int luaopen_codec(lua_State * const L)
 {
   luaL_register(L, "codec", codec);
   return 1;
+}
 }
